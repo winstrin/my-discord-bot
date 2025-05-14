@@ -56,45 +56,61 @@ async def on_member_join(member):
 @bot.event
 async def on_message(message):
     try:
-    if message.author.bot:
-        return
+        if message.author.bot:
+            return
 
-    user_id = str(message.author.id)
-    xp_data.setdefault(user_id, 0)
-    xp_data[user_id] += 3
-    level_before = get_level(xp_data[user_id] - 10)
-    level_after = get_level(xp_data[user_id])
+        # Проверяем, является ли сообщение командой
+        ctx = await bot.get_context(message)
+        if ctx.valid:
+            await bot.process_commands(message)
+            return
 
-    if level_after > level_before:
-        level_channel = bot.get_channel(LEVEL_CHANNEL_ID)
-        if level_channel:
-            await level_channel.send(f"🎉 {message.author.mention}, ты достиг {level_after} уровня!")
+        # XP начисляется только за обычные сообщения
+        user_id = str(message.author.id)
+        xp_data.setdefault(user_id, 0)
+        xp_data[user_id] += 3
+        level_before = get_level(xp_data[user_id] - 10)
+        level_after = get_level(xp_data[user_id])
 
-        guild = message.guild
-        role_map = {
-            5: "Среднячёк",
-            10: "Крутой 😎",
-            15: "Звезда 🌟",
-            20: "Олд"
-        }
+        if level_after > level_before:
+            level_channel = bot.get_channel(LEVEL_CHANNEL_ID)
+            if level_channel:
+                await level_channel.send(f"🎉 {message.author.mention}, ты достиг {level_after} уровня!")
 
-        if level_after in role_map:
-            role_name = role_map[level_after]
-            role = discord.utils.get(guild.roles, name=role_name)
-            if role:
-                await message.author.add_roles(role)
-                if level_channel:
-                    await level_channel.send(f"🔰 {message.author.mention}, тебе выдана роль **{role.name}**!")
+            guild = message.guild
+            role_map = {
+                5: "Среднячёк",
+                10: "Крутой 😎",
+                15: "Звезда 🌟",
+                20: "Олд"
+            }
 
-    save_xp()
-    await bot.process_commands(message)
+            if level_after in role_map:
+                role_name = role_map[level_after]
+                role = discord.utils.get(guild.roles, name=role_name)
+                if role:
+                    await message.author.add_roles(role)
+                    if level_channel:
+                        await level_channel.send(f"🔰 {message.author.mention}, тебе выдана роль **{role.name}**!")
+
+        save_xp()
+
+    except Exception as e:
+        print(f"❌ Ошибка в on_message: {e}")
 
 @bot.command()
 async def ранг(ctx):
     user_id = str(ctx.author.id)
     xp = xp_data.get(user_id, 0)
     level = get_level(xp)
-    await ctx.send(f"📊 {ctx.author.mention}, твой уровень: {level} | XP: {xp}")
+
+    embed = discord.Embed(
+        title="📈 Твой ранг",
+        description=f"**Уровень:** {level}\n**Опыт:** {xp}",
+        color=discord.Color.purple()
+    )
+    embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
+    await ctx.send(embed=embed)
 
 @bot.command()
 async def топ(ctx):
@@ -105,13 +121,17 @@ async def топ(ctx):
     sorted_users = sorted(xp_data.items(), key=lambda x: x[1], reverse=True)
     top5 = sorted_users[:5]
 
-    msg = "🏆 **Топ 5 по уровню:**\n"
+    embed = discord.Embed(
+        title="🏆 Топ 5 по уровню",
+        color=discord.Color.gold()
+    )
+
     for i, (user_id, xp) in enumerate(top5, start=1):
         user = await bot.fetch_user(int(user_id))
         level = get_level(xp)
-        msg += f"{i}. {user.name} — Уровень {level} | XP {xp}\n"
+        embed.add_field(name=f"{i}. {user.name}", value=f"Уровень {level} | XP {xp}", inline=False)
 
-    await ctx.send(msg)
+    await ctx.send(embed=embed)
 
 @bot.command()
 async def ping(ctx):
