@@ -55,6 +55,7 @@ async def on_member_join(member):
 
 @bot.event
 async def on_message(message):
+    try:
     if message.author.bot:
         return
 
