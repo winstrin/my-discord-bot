@@ -29,7 +29,7 @@ async def save_xp():
             json.dump(xp_data, f)
 
 def get_level(xp):
-    return int(xp ** 0.5)
+    return int((xp / 5) ** 0.5)
 
 @bot.event
 async def on_ready():
