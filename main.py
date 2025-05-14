@@ -3,6 +3,9 @@ from discord.ext import commands
 from keep_alive import keep_alive
 import json
 import os
+import asyncio
+
+xp_lock = asyncio.Lock()
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -20,9 +23,10 @@ if os.path.exists("xp.json"):
 else:
     xp_data = {}
 
-def save_xp():
-    with open("xp.json", "w") as f:
-        json.dump(xp_data, f)
+async def save_xp():
+    async with xp_lock:
+        with open("xp.json", "w") as f:
+            json.dump(xp_data, f)
 
 def get_level(xp):
     return int(xp ** 0.5)
@@ -73,9 +77,19 @@ async def on_message(message):
         level_after = get_level(xp_data[user_id])
 
         if level_after > level_before:
-            level_channel = bot.get_channel(LEVEL_CHANNEL_ID)
-            if level_channel:
-                await level_channel.send(f"🎉 {message.author.mention}, ты достиг {level_after} уровня!")
+    # Предотвращаем повторную выдачу уровня
+    xp_data.setdefault("last_level", {})
+    last = xp_data["last_level"].get(user_id)
+
+    if last == level_after:
+        return  # уже выдавали этот уровень — выходим
+
+    # Сохраняем последний достигнутый уровень
+    xp_data["last_level"][user_id] = level_after
+
+    level_channel = bot.get_channel(LEVEL_CHANNEL_ID)
+    if level_channel:
+        await level_channel.send(f"🎉 {message.author.mention}, ты достиг {level_after} уровня!")
 
             guild = message.guild
             role_map = {
@@ -93,7 +107,7 @@ async def on_message(message):
                     if level_channel:
                         await level_channel.send(f"🔰 {message.author.mention}, тебе выдана роль **{role.name}**!")
 
-        save_xp()
+       await save_xp()
 
     except Exception as e:
         print(f"❌ Ошибка в on_message: {e}")
