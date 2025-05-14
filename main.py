@@ -13,7 +13,7 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-OWNER_ID = 583975354826489866 # замени на свой Discord user ID (int)
+OWNER_ID = 583975354826489866  # замени на свой Discord user ID
 LEVEL_CHANNEL_ID = 1371182706573967500  # канал для уведомлений о левелапах
 
 # XP система
@@ -63,13 +63,11 @@ async def on_message(message):
         if message.author.bot:
             return
 
-        # Проверяем, является ли сообщение командой
         ctx = await bot.get_context(message)
         if ctx.valid:
             await bot.process_commands(message)
             return
 
-        # XP начисляется только за обычные сообщения
         user_id = str(message.author.id)
         xp_data.setdefault(user_id, 0)
         xp_data[user_id] += 3
@@ -77,19 +75,17 @@ async def on_message(message):
         level_after = get_level(xp_data[user_id])
 
         if level_after > level_before:
-    # Предотвращаем повторную выдачу уровня
-    xp_data.setdefault("last_level", {})
-    last = xp_data["last_level"].get(user_id)
+            xp_data.setdefault("last_level", {})
+            last = xp_data["last_level"].get(user_id)
 
-    if last == level_after:
-        return  # уже выдавали этот уровень — выходим
+            if last == level_after:
+                return
 
-    # Сохраняем последний достигнутый уровень
-    xp_data["last_level"][user_id] = level_after
+            xp_data["last_level"][user_id] = level_after
 
-    level_channel = bot.get_channel(LEVEL_CHANNEL_ID)
-    if level_channel:
-        await level_channel.send(f"🎉 {message.author.mention}, ты достиг {level_after} уровня!")
+            level_channel = bot.get_channel(LEVEL_CHANNEL_ID)
+            if level_channel:
+                await level_channel.send(f"🎉 {message.author.mention}, ты достиг {level_after} уровня!")
 
             guild = message.guild
             role_map = {
@@ -107,7 +103,7 @@ async def on_message(message):
                     if level_channel:
                         await level_channel.send(f"🔰 {message.author.mention}, тебе выдана роль **{role.name}**!")
 
-       await save_xp()
+        await save_xp()
 
     except Exception as e:
         print(f"❌ Ошибка в on_message: {e}")
@@ -141,6 +137,8 @@ async def топ(ctx):
     )
 
     for i, (user_id, xp) in enumerate(top5, start=1):
+        if user_id == "last_level":
+            continue  # пропускаем системные данные
         user = await bot.fetch_user(int(user_id))
         level = get_level(xp)
         embed.add_field(name=f"{i}. {user.name}", value=f"Уровень {level} | XP {xp}", inline=False)
